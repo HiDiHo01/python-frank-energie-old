@@ -287,17 +287,17 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "blacken-docs"
-version = "1.15.0"
+version = "1.18.0"
 description = "Run Black on Python code blocks in documentation files."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "blacken_docs-1.15.0-py3-none-any.whl", hash = "sha256:020657fd480f9f0a4dc82b9278390891ebd5216992b026e652c5b31d0e9c405d"},
-    {file = "blacken_docs-1.15.0.tar.gz", hash = "sha256:2915242add4e584738027b5bebafd4120c174a6c7645e1d8ce1c2f3265edc48a"},
+    {file = "blacken_docs-1.18.0-py3-none-any.whl", hash = "sha256:64f592246784131e9f84dad1db397f44eeddc77fdf01726bab920a3f00a3815c"},
+    {file = "blacken_docs-1.18.0.tar.gz", hash = "sha256:47bed628679d008a8eb55d112df950582e68d0f57615223929e366348d935444"},
 ]
 
 [package.dependencies]
-black = ">=22.1.0"
+black = ">=22.1"
 
 [[package]]
 name = "certifi"
@@ -2277,4 +2277,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "635a3cdf6ba3b30e3d94518334446b8bd4f91514987f4a839ba7e5660d7c7a5e"
+content-hash = "a59a311685ee7566bd8575739d4e7e0542a7ecc88a00ab5ecdcd1d7a7b63da98"
