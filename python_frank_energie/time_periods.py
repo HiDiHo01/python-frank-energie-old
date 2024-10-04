@@ -22,7 +22,7 @@ class TimePeriod(Enum):
     - `TimePeriod.NEXT_MONTH` represents all invoices for the next month.
     - `TimePeriod.CURRENT_YEAR` represents all invoices for the current year.
     - `TimePeriod.PREVIOUS_YEAR` represents all invoices for the previous year.
-    - `TimePeriod.ALLTIME` represents all prices or invoices.
+    - `TimePeriod.ALL_TIME` represents all prices or invoices.
     """
 
     PREVIOUS_HOUR = 'previous_hour'  # The hour before the current hour.
@@ -41,7 +41,7 @@ class TimePeriod(Enum):
     NEXT_MONTH = 'next_month'  # All invoices for previous month.
     CURRENT_YEAR = 'current_year'  # All invoices for current year.
     PREVIOUS_YEAR = 'previous_year'  # All invoices for previous year.
-    ALLTIME = "all_time" # All prices or invoices
+    ALL_TIME = "all_time" # All prices or invoices
 
     def __str__(self):
         return self.value
