@@ -1,0 +1,13 @@
+name: base
+channels:
+  - defaults
+  - conda-forge
+
+dependencies:
+  - python=3.12  # Adjust this to your preferred Python version
+  - pylint
+  - pip
+  - pip:
+      - homeassistant
+      - requests
+      - setuptools
