@@ -1,17 +1,20 @@
----
-name: Release Drafter
+# GitHub Actions Workflow File for Release Drafter
+# File: .github/workflows/release-drafter.yml
+
+name: Release Drafter  # Workflow name
 
 on:
   push:
     branches:
-      - main
+      - main  # Triggers on push events to the main branch
 
 jobs:
   update_release_draft:
-    name: Draft release
-    runs-on: ubuntu-latest
+    name: Draft release  # Job name
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+
     steps:
-      - name: Run Release Drafter
-        uses: release-drafter/release-drafter@v6.0.0
+      - name: Run Release Drafter  # Step name
+        uses: release-drafter/release-drafter@v6.0.0  # Uses Release Drafter action
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Authentication token from GitHub secrets
