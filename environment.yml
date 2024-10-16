@@ -6,6 +6,8 @@ channels:
 dependencies:
   - python=3.12  # Adjust this to your preferred Python version
   - pylint
+  - pytest
+  - freezegun
   - pip
   - pip:
       - homeassistant
