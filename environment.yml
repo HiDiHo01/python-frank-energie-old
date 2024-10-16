@@ -13,3 +13,4 @@ dependencies:
       - homeassistant
       - requests
       - setuptools
+      - jwt
