@@ -8,7 +8,6 @@ __all__ = [
     "Authentication",
     "AuthException",
     "ConnectionException",
-    "FrankEnergie",
     "Price",
     "PriceData",
 ]
