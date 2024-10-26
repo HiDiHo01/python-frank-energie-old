@@ -16,3 +16,4 @@ dependencies:
       - jwt
       - pydantic
       - aiohttp
+      - freezegun
