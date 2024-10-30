@@ -7,7 +7,7 @@ repos:
         language: system
         types: [python]
         entry: poetry run bandit
-        files: ^homewizard_energy/
+        files: ^python-frank-energie/
         require_serial: true
       - id: black
         name: Format using black
