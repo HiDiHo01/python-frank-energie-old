@@ -158,7 +158,7 @@ class Invoices:
 
     def get_all_invoices_dict_for_previous_year(self) -> dict:
         """Retrieve all invoices for the specified year as a dictionary."""
-        previous_year = datetime.utcnow().year-1
+        previous_year = datetime.now(timezone.utc).year-1
         invoices_dict = {}
 
         for invoice in self.get_invoices_for_year(previous_year):
@@ -175,7 +175,7 @@ class Invoices:
 
     def get_all_invoices_dict_for_this_year(self) -> dict:
         """Retrieve all invoices for the specified year as a dictionary."""
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
         invoices_dict = {}
 
         for invoice in self.get_invoices_for_year(current_year):
@@ -319,7 +319,7 @@ class Invoices:
         invoices_count = 0
         total_costs = 0.0
 
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
 
         for invoice in self.allPeriodsInvoices:
             if invoice.StartDate.year == current_year:
@@ -332,7 +332,7 @@ class Invoices:
         if invoices_count == 0:
             return None
 
-        current_month = datetime.utcnow().month
+        current_month = datetime.now(timezone.utc).month
         average_costs = total_costs / invoices_count
 
         if current_month == 1:
@@ -370,7 +370,7 @@ class Invoices:
             ),
         )
 
-        current_year = datetime.utcnow().year
+        current_year = datetime.now(timezone.utc).year
         previous_year = current_year - 1
 
         invoices_instance.TotalCostsPreviousYear = invoices_instance.calculate_total_costs(
@@ -2034,7 +2034,7 @@ class PriceData:
     @property
     def tomorrow_prices_market(self) -> list:
         """ Get the market prices for tomorrow"""
-        current_hour_utc = datetime.utcnow().hour
+        current_hour_utc = datetime.now(timezone.utc).hour
         if not self.price_data or current_hour_utc > 21 or current_hour_utc < 13:
             return None
         # if -1 < datetime.now().hour < 15:
