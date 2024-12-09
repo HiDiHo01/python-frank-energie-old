@@ -8,7 +8,7 @@ This package is not developed, nor supported by Frank Energie.
 
 ## Installation
 ```bash
-python3 -m pip install git+https://github.com/HiDiHo01/python-frank-energie.git@v2024.11.10
+python3 -m pip install git+https://github.com/HiDiHo01/python-frank-energie.git@v2024.11.22
 ```
 
 ## Contributing
