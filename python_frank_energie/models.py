@@ -1149,10 +1149,12 @@ class Price:
         if self.energy_type:
             if self.energy_type == "electricity":
                 # self.energy_tax_price = 0.15239 # electricity tax 2023
-                self.energy_tax_price = 0.13165  # electricity tax 2024
+                # self.energy_tax_price = 0.13165  # electricity tax 2024
+                self.energy_tax_price = 0.1228634  # electricity tax 2025
             if self.energy_type == "gas":
                 # self.energy_tax_price = 0.5927 # gas tax 2023
-                self.energy_tax_price = 0.70544  # gas tax 2024
+                # self.energy_tax_price = 0.70544  # gas tax 2024
+                self.energy_tax_price = 0.6995736  # gas tax 2025
 
     def __init__(self, data: dict, energy_type: Optional[str] = None) -> None:
         """Parse the response from the prices query."""
@@ -1205,10 +1207,12 @@ class Price:
             self.energy_type = data["energy_type"]
             if self.energy_type == "electricity":
                 # self.energy_tax_price = 0.15239 # electricity tax 2023
-                self.energy_tax_price = 0.13165  # electricity tax 2024
+                # self.energy_tax_price = 0.13165  # electricity tax 2024
+                self.energy_tax_price = 0.1228634  # electricity tax 2025
             if self.energy_type == "gas":
                 # self.energy_tax_price = 0.5927 # gas tax 2023
-                self.energy_tax_price = 0.70544  # gas tax 2024
+                # self.energy_tax_price = 0.70544  # gas tax 2024
+                self.energy_tax_price = 0.6995736  # gas tax 2025
         else:
             self.energy_type = None
 
@@ -1223,10 +1227,12 @@ class Price:
             self.energy_type = data["energy_type"]
             if self.energy_type == "electricity":
                 # self.energy_tax_price = 0.15239 # electricity tax 2023
-                self.energy_tax_price = 0.13165  # electricity tax 2024
+                # self.energy_tax_price = 0.13165  # electricity tax 2024
+                self.energy_tax_price = 0.1228634  # electricity tax 2025
             if self.energy_type == "gas":
                 # self.energy_tax_price = 0.5927 # gas tax 2023
-                self.energy_tax_price = 0.70544  # gas tax 2024
+                # self.energy_tax_price = 0.70544  # gas tax 2024
+                self.energy_tax_price = 0.6995736  # gas tax 2025
             return data["energy_type"]
         else:
             return None
