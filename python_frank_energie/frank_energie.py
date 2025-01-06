@@ -17,7 +17,7 @@ from .models import (Authentication, EnergyConsumption, Invoice, Invoices,
                      MarketPrices, Me, MonthInsights, MonthSummary, SmartBatteries, SmartBatterySessions, User)
 from .authentication import Authentication
 
-VERSION = "2024.11.10"
+VERSION = "2025.1.6"
 
 class FrankEnergieQuery:
     def __init__(self, query: str, operation_name: str, variables: Optional[dict[str, Any]] = None):
