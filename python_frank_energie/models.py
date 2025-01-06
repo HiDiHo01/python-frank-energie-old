@@ -22,7 +22,7 @@ TAX_RATE = 0.21
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
-VERSION = "2024.9.25"
+VERSION = "2025.1.6"
 
 
 @dataclass
