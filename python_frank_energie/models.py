@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Data models enable parsing and processing of the Frank Energie API responses in a structured manner."""
 # python_frank_energie/models.py
 
@@ -8,11 +9,11 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from statistics import mean
 from typing import Any, Optional, Set, Union
-from pydantic import BaseModel, Field, EmailStr
 
 import jwt
 import pytz
 from dateutil import parser
+from pydantic import BaseModel, EmailStr, Field
 
 from .exceptions import AuthException, RequestException
 from .time_periods import TimePeriod
@@ -51,7 +52,7 @@ class Authentication:
         if not login_payload and not renew_payload:
             raise AuthException("Unexpected response")
 
-        #payload = login_payload or renew_payload
+        # payload = login_payload or renew_payload
         payload = Authentication._extract_payload(data)
         if not payload:
             raise AuthException("Unexpected response")
@@ -382,6 +383,203 @@ class Invoices:
         invoices_instance.AllInvoicesDict = invoices_instance.get_all_invoices_dict()
         return invoices_instance
 
+@dataclass
+class UsageItem:
+    """Representeert een individueel gebruiksitem binnen een periode."""
+
+    date: date
+    from_time: str
+    till_time: str
+    usage: float
+    costs: float
+    unit: str
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> UsageItem:
+        """Maakt een UsageItem-object aan vanuit een dictionary."""
+        try:
+            return UsageItem(
+                date=date.fromisoformat(data["date"]),
+                from_time=str(data["from"]),
+                till_time=str(data["till"]),
+                usage=float(data["usage"]),
+                costs=float(data["costs"]),
+                unit=str(data["unit"]),
+            )
+        except KeyError as e:
+            raise ValueError(f"Ontbrekend veld {e.args[0]} in UsageItem data: {data}") from e
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Fout bij conversie van UsageItem data: {e}, data: {data}") from e
+
+
+@dataclass
+class EnergyCategory:
+    """Representeert een energiecategorie zoals gas, elektriciteit of teruglevering."""
+
+    usage_total: float
+    costs_total: float
+    unit: str
+    items: list[UsageItem]
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> EnergyCategory:
+        """Creates an EnergyCategory object from a dictionary."""
+        try:
+            if data is None:
+                # If data is None, return a default EnergyCategory object
+                return EnergyCategory(usage_total=0.00, costs_total=0.00, unit="", items=[])
+            
+            usage_total = data.get("usageTotal")
+            if usage_total is not None:
+                usage_total = float(usage_total)
+            else:
+                usage_total = 0.00  # Default value if usageTotal is missing or None
+            
+            return EnergyCategory(
+                usage_total=usage_total,
+                costs_total=float(data["costsTotal"]),
+                unit=str(data["unit"]),
+                items=[UsageItem.from_dict(item) for item in data.get("items", []) or []],
+            )
+        except KeyError as e:
+            raise ValueError(f"Missing field {e.args[0]} in EnergyCategory data: {data}") from e
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Error converting EnergyCategory data: {e}, data: {data}") from e
+
+@dataclass
+class PeriodUsageAndCosts:
+    """Bevat het verbruik en de kosten van gas, elektriciteit en teruglevering voor een periode."""
+
+    _id: str
+    gas: EnergyCategory
+    electricity: EnergyCategory
+    feed_in: EnergyCategory
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> PeriodUsageAndCosts:
+        """Maakt een PeriodUsageAndCosts-object aan vanuit een dictionary."""
+        try:
+            period_data = data.get("periodUsageAndCosts")
+            if not period_data:
+                return None
+
+            # Handle cases where gas, electricity, or feed_in data is None
+            gas_data = period_data.get("gas") if period_data.get("gas") is not None else None
+            feed_in_data = period_data.get("feedIn") if period_data.get("feedIn") is not None else None
+            electricity_data = period_data.get("electricity") if period_data.get("electricity") is not None else None
+
+            # Return None if gas data is None
+            # if gas_data is None:
+            #    return None
+
+            # If any of the required data is missing, the field will be set to None
+            return PeriodUsageAndCosts(
+                _id=str(period_data["_id"]),
+                gas=EnergyCategory.from_dict(gas_data) if gas_data else None,
+                electricity=EnergyCategory.from_dict(electricity_data) if electricity_data else None,
+                feed_in=EnergyCategory.from_dict(feed_in_data) if feed_in_data else None,
+            )
+        except KeyError as e:
+            raise ValueError(f"Ontbrekend veld {e.args[0]} in PeriodUsageAndCosts data: {data}") from e
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Fout bij conversie van PeriodUsageAndCosts data: {e}, data: {data}") from e
+
+@dataclass
+class UserSites:
+    """UserSites data."""
+
+    # deliverySites: list[str]
+    deliverySites: list[Any]
+    addressFormatted: str
+    addressHasMultipleSites: bool
+    deliveryEndDate: Optional[str]
+    deliveryStartDate: Optional[str]
+    firstMeterReadingDate: Optional[str]
+    lastMeterReadingDate: Optional[str]
+    propositionType: Optional[str]
+    reference: str
+    segments: list[str]
+    status: str
+
+    @staticmethod
+    def from_dict(data: dict[str, str]) -> 'UserSites':
+        """Parse the response from the me query."""
+        _LOGGER.debug("UserSites %s", data)
+
+        if errors := data.get("errors"):
+            raise RequestException(errors[0]["message"])
+
+        if 'errors' in data:
+            raise RequestException(data['errors'][0]['message'])
+
+        user_sites = data.get("data", {}).get("userSites")
+        if not user_sites or not isinstance(user_sites, list):
+            raise RequestException("Unexpected response format for userSites")
+
+        # first_meter_reading_date: Optional[date] = None
+        # last_meter_reading_date: Optional[date] = None
+        first_meter_reading_date: Optional[str] = None
+        last_meter_reading_date: Optional[str] = None
+        if user_sites and isinstance(user_sites, list):
+            first_site = user_sites[0]
+            first_meter_reading_date = first_site.get("firstMeterReadingDate")
+            last_meter_reading_date = first_site.get("lastMeterReadingDate")
+
+        return UserSites(
+            addressFormatted=first_site.get("addressFormatted"),
+            addressHasMultipleSites=first_site.get("addressHasMultipleSites"),
+            deliveryEndDate=first_site.get("deliveryEndDate"),
+            deliveryStartDate=first_site.get("deliveryStartDate"),
+            firstMeterReadingDate=first_meter_reading_date,
+            lastMeterReadingDate=last_meter_reading_date,
+            propositionType=first_site.get("propositionType"),
+            reference=first_site.get("reference"),
+            segments=first_site.get("segments"),
+            status=first_site.get("status"),
+            # deliverySites=DeliverySiteList(payload.get("deliverySites")),
+            # deliverySites=DeliverySiteList(delivery_sites_data),
+            deliverySites=[
+                DeliverySite.from_dict(site) for site in user_sites
+            ] if 'DeliverySite' in globals() else [],
+        )
+
+    @property
+    def old_format_delivery_site_as_dict(self):
+        sites_as_dict = []
+        for site in self.deliverySites:
+            address = site.get('address', {})
+            sites_as_dict.append(
+                f"{address.get('street')} {address.get('houseNumber')} {address.get('houseNumberAddition', '') if address.get('houseNumberAddition') else ''} {address.get('zipCode')} {address.get('city')}")
+        return sites_as_dict
+
+    @property
+    def old2_format_delivery_site_as_dict(self) -> list[str]:
+        """Format delivery site information as a list of formatted addresses."""
+        sites_as_dict = []
+        for site in self.deliverySites:
+            address = getattr(site, 'address', {})
+            sites_as_dict.append(
+                f"{address.get('street', '')} {address.get('houseNumber', '')} "
+                f"{address.get('houseNumberAddition', '') if address.get('houseNumberAddition') else ''} "
+                f"{address.get('zipCode', '')} {address.get('city', '')}".strip()
+            )
+        return sites_as_dict
+
+    @property
+    def format_delivery_site_as_dict(self) -> list[str]:
+        """Format delivery site information as a list of formatted addresses."""
+        sites_as_dict = []
+        for site in self.deliverySites:
+            address = getattr(site, 'address', None)
+
+            if address:
+                sites_as_dict.append(
+                    f"{getattr(address, 'street', '')} {getattr(address, 'houseNumber', '')} "
+                    f"{getattr(address, 'houseNumberAddition', '') if getattr(address, 'houseNumberAddition', None) else ''} "
+                    f"{getattr(address, 'zipCode', '')} {getattr(address, 'city', '')}".strip()
+                )
+        return sites_as_dict
+
 
 @dataclass
 class Me:
@@ -395,13 +593,13 @@ class Me:
     treesCount: int
     hasInviteLink: bool
     hasCO2Compensation: bool
-    deliverySites: list['DeliverySite']
+    # deliverySites: list['DeliverySite']
     updatedAt: str
     addressHasMultipleSites: bool
-    #firstMeterReadingDate: date
-    #lastMeterReadingDate: date
-    firstMeterReadingDate: Optional[str]
-    lastMeterReadingDate: Optional[str]
+    # firstMeterReadingDate: date
+    # lastMeterReadingDate: date
+    # firstMeterReadingDate: Optional[str]
+    # lastMeterReadingDate: Optional[str]
     meterReadingExportPeriods: list
     # deliverySites: list
     smartCharging: dict
@@ -421,15 +619,15 @@ class Me:
         if not payload:
             raise RequestException("Unexpected response")
 
-        delivery_sites = payload.get("deliverySites", [])
-        #first_meter_reading_date: Optional[date] = None
-        #last_meter_reading_date: Optional[date] = None
-        first_meter_reading_date: Optional[str] = None
-        last_meter_reading_date: Optional[str] = None
-        if delivery_sites and isinstance(delivery_sites, list):
-            first_site = delivery_sites[0]
-            first_meter_reading_date = first_site.get("firstMeterReadingDate")
-            last_meter_reading_date = first_site.get("lastMeterReadingDate")
+        # delivery_sites = payload.get("deliverySites", [])
+        # first_meter_reading_date: Optional[date] = None
+        # last_meter_reading_date: Optional[date] = None
+        # first_meter_reading_date: Optional[str] = None
+        # last_meter_reading_date: Optional[str] = None
+        # if delivery_sites and isinstance(delivery_sites, list):
+        #     first_site = delivery_sites[0]
+        #     first_meter_reading_date = first_site.get("firstMeterReadingDate")
+        #     last_meter_reading_date = first_site.get("lastMeterReadingDate")
 
         return Me(
             id=payload.get("id"),
@@ -442,15 +640,16 @@ class Me:
             hasCO2Compensation=payload.get("hasCO2Compensation"),
             updatedAt=payload.get("updatedAt"),
             addressHasMultipleSites=payload.get("addressHasMultipleSites"),
-            firstMeterReadingDate=first_meter_reading_date,
-            lastMeterReadingDate=last_meter_reading_date,
+            # firstMeterReadingDate=first_meter_reading_date,
+            # lastMeterReadingDate=last_meter_reading_date,
             meterReadingExportPeriods=payload.get("meterReadingExportPeriods"),
             smartCharging=payload.get("smartCharging"),
-            deliverySites=[
-                DeliverySite.from_dict(site)
-                for site in payload.get("deliverySites", [])
-            ],
+            # deliverySites=[
+            #     DeliverySite.from_dict(site)
+            #     for site in payload.get("deliverySites", [])
+            # ],
         )
+
 
 def get_segments(data: dict[str, Any]) -> Optional[list[str]]:
     delivery_site_data = data.get("user")
@@ -458,6 +657,7 @@ def get_segments(data: dict[str, Any]) -> Optional[list[str]]:
         delivery_site = DeliverySite(**delivery_site_data)
         return delivery_site.segments
     return None
+
 
 @dataclass
 class Address:
@@ -470,15 +670,39 @@ class Address:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "Address":
+        # address_formatted = data.get("addressFormatted", ["", ""])
+        address_formatted = data.get("addressFormatted")
+        print("address_formatted:", address_formatted)
+        if not address_formatted or len(address_formatted) < 2:
+        # Handle lege of ontbrekende waarde
+            # raise ValueError("Invalid address: address is missing or too short")
+            return None
+        # Eerste deel bevat straat en huisnummer (bijv. "Straat 123")
+        street_parts = address_formatted[0].rsplit(" ", 1)
+        street = street_parts[0]
+        # Tweede deel bevat postcode en stad (bijv. "1000 AA AMSTERDAM")
+        zip_city_parts = address_formatted[1].split(" ", 2)
+        zip_code = " ".join(zip_city_parts[:2])
+        city = zip_city_parts[2] if len(zip_city_parts) > 2 else ""
+        house_number_addition = None
+        house_number=street_parts[1] if len(street_parts) > 1 else ""
+        if not house_number.isdigit():  # Als er letters in staan, splitsen
+            for i, char in enumerate(house_number):
+                if char.isalpha():
+                    house_number_addition = house_number[i:]
+                    house_number = house_number[:i]
+                    break
         return Address(
-            street=data.get("street"),
-            houseNumber=data.get("houseNumber"),
-            zipCode=data.get("zipCode"),
-            city=data.get("city"),
-            houseNumberAddition=data.get("houseNumberAddition")
+            street=street,
+            houseNumber=house_number,
+            zipCode=zip_code,
+            city=city,
+            houseNumberAddition=house_number_addition
         )
 
 # @dataclass
+
+
 class DeliverySite(BaseModel):
     """Delivery sites data, including the address and delivery status.
 
@@ -514,6 +738,7 @@ class DeliverySite(BaseModel):
     deliveryEndDate: Optional[date] = None
     firstMeterReadingDate: Optional[date]
     lastMeterReadingDate: Optional[date]
+    deliverySites: list[dict[str, Any]] = []
 
     @staticmethod
     def from_dict(payload: dict[str, str]) -> 'DeliverySite':
@@ -524,18 +749,11 @@ class DeliverySite(BaseModel):
 
         _LOGGER.debug("DeliverySites %s", payload)
 
+        # address_data = payload.get("addressFormatted")
+        # address_data = payload.get("addressFormatted", ["", ""])
+        # address = Address(**address_data) if address_data else None
         address_data = payload.get("address")
-        address = Address(**address_data) if address_data else None
-        # if address_data:
-        #     address = Address(
-        #         street=address_data.get("street"),
-        #         houseNumber=address_data.get("houseNumber"),
-        #         houseNumberAddition=address_data.get("houseNumberAddition"),
-        #         zipCode=address_data.get("zipCode"),
-        #         city=address_data.get("city")
-        #     )
-        # else:
-        #     address = None
+        address = Address.from_dict(address_data) if address_data else None
 
         return DeliverySite(
             reference=payload.get("reference"),
@@ -545,13 +763,24 @@ class DeliverySite(BaseModel):
             address=address,
             propositionType=payload.get("propositionType"),
             status=payload.get("status"),
-            deliveryStartDate=datetime.fromisoformat(payload.get("deliveryStartDate")) if payload.get("deliveryStartDate") else None,
-            deliveryEndDate=datetime.fromisoformat(payload["deliveryEndDate"]) if payload.get("deliveryEndDate") else None,
+            deliveryStartDate=datetime.fromisoformat(payload.get(
+                "deliveryStartDate")) if payload.get("deliveryStartDate") else None,
+            deliveryEndDate=datetime.fromisoformat(
+                payload["deliveryEndDate"]) if payload.get("deliveryEndDate") else None,
             firstMeterReadingDate=datetime.fromisoformat(
                 payload.get("firstMeterReadingDate")).astimezone(pytz.timezone('Europe/Amsterdam')),
             lastMeterReadingDate=datetime.fromisoformat(
                 payload.get("lastMeterReadingDate")).astimezone(pytz.timezone('Europe/Amsterdam')),
         )
+
+    @property
+    def format_delivery_site_as_dict(self):
+        sites_as_dict = []
+        for site in self.deliverySites:
+            address = site.get('address', {})
+            sites_as_dict.append(
+                f"{address.get('street')} {address.get('houseNumber')} {address.get('houseNumberAddition', '') if address.get('houseNumberAddition') else ''} {address.get('zipCode')} {address.get('city')}")
+        return sites_as_dict
 
 @dataclass
 class Person:
@@ -564,6 +793,7 @@ class Person:
             firstName=data.get("firstName"),
             lastName=data.get("lastName")
         )
+
 
 @dataclass
 class Contact:
@@ -579,9 +809,11 @@ class Contact:
             mobileNumber=data.get("mobileNumber")
         )
 
+
 @dataclass
 class Email:
     email: str
+
 
 @dataclass
 class Debtor:
@@ -592,8 +824,10 @@ class Debtor:
     def from_dict(data: dict[str, Any]) -> "Debtor":
         return Debtor(
             bankAccountNumber=data.get("bankAccountNumber"),
-            preferredAutomaticCollectionDay=data.get("preferredAutomaticCollectionDay")
+            preferredAutomaticCollectionDay=data.get(
+                "preferredAutomaticCollectionDay")
         )
+
 
 @dataclass
 class Connection:
@@ -608,7 +842,8 @@ class Connection:
             city: Optional[str] = None
 
         gridOperator: Optional[str] = None
-        address: GridOperatorAddress = field(default_factory=GridOperatorAddress)
+        address: GridOperatorAddress = field(
+            default_factory=GridOperatorAddress)
 
     id: Optional[str] = None
     connectionId: Optional[str] = None
@@ -621,6 +856,7 @@ class Connection:
     lastMeterReadingDate: Optional[str] = None
     meterType: Optional[str] = None
     externalDetails: ExternalDetails = field(default_factory=ExternalDetails)
+
 
 @dataclass
 class MeterReadingExportPeriod:
@@ -635,6 +871,7 @@ class MeterReadingExportPeriod:
     type: str
     updatedAt: str
 
+
 @dataclass
 class Signup:
     class UserDetails:
@@ -642,6 +879,7 @@ class Signup:
         email: Optional[str] = None
 
     user: UserDetails
+
 
 @dataclass
 class UserSettings:
@@ -651,6 +889,7 @@ class UserSettings:
     jedlixPushNotifications: bool
     smartPushNotifications: bool
     rewardPayoutPreference: str
+
 
 @dataclass
 class InviteLinkUser:
@@ -669,9 +908,11 @@ class InviteLinkUser:
     updatedAt: str
     usedCount: int
 
+
 @dataclass
 class Organization:
     Email: str
+
 
 @dataclass
 class PushNotificationPriceAlert:
@@ -679,6 +920,7 @@ class PushNotificationPriceAlert:
     isEnabled: Optional[bool] = None
     type: Optional[str] = None
     weekdays: Optional[list[int]] = None
+
 
 @dataclass
 class SmartCharging:
@@ -689,6 +931,7 @@ class SmartCharging:
     isAvailableInCountry: bool
     needsSubscription: bool
     subscription: Optional[str]
+
 
 @dataclass
 class ExternalDetails:
@@ -707,6 +950,7 @@ class ExternalDetails:
             address=Address.from_dict(data.get("address", {})),
             debtor=Debtor.from_dict(data.get("debtor", {}))
         )
+
 
 @dataclass
 class DeliverySiteFormat:
@@ -817,7 +1061,7 @@ class User:
     activePaymentAuthorization: Optional[list]
     InviteLinkUser: InviteLinkUser
     Organization: Organization
-    deliverySites: DeliverySiteList
+    # deliverySites: DeliverySiteList
     connections: Optional[list[Connection]]
     # deliverySites: list[DeliverySite]
     createdAt: datetime
@@ -826,13 +1070,13 @@ class User:
     # firstName: Optional[str]
     # lastName: Optional[str]
     countryCode: str
-    segments: list[str]
+    # segments: list[str]
     lastLogin: datetime
     reference: int
     connectionsStatus: str
-    deliveryStartDate: date
-    firstMeterReadingDate: date
-    lastMeterReadingDate: date
+    # deliveryStartDate: date
+    # firstMeterReadingDate: date
+    # lastMeterReadingDate: date
     meterReadingExportPeriods: dict[str, Any]
     advancedPaymentAmount: float
     hasCO2Compensation: bool
@@ -840,7 +1084,7 @@ class User:
     status: str
     UserSettings: dict[str, Any]
     PushNotificationPriceAlerts: list[Any]
-    propositionType: str
+    # propositionType: str
     websiteUrl: str
     customerSupportEmail: str
     Signup: Signup
@@ -864,11 +1108,19 @@ class User:
 
         _LOGGER.debug("deliverySites %s", payload.get("deliverySites"))
 
-        delivery_sites_data = payload.get("deliverySites", [])
-        if not delivery_sites_data:
-            raise RequestException("No delivery sites found in the payload")
+        last_login_str = payload.get("lastLogin")
+        last_login = None
+        if last_login_str:
+            try:
+                last_login = datetime.fromisoformat(last_login_str)
+            except ValueError:
+                _LOGGER.warning("Invalid lastLogin format: %s", last_login_str)
 
-        first_site = delivery_sites_data[0]
+        # delivery_sites_data = payload.get("deliverySites", [])
+        # if not delivery_sites_data:
+        #     raise RequestException("No delivery sites found in the payload")
+
+        # first_site = delivery_sites_data[0]
         # todo select only site with the chosen deliverySite reference
         # selected_delivery_sites = [site for site in delivery_sites_data if site.reference == "IN_DELIVERY"]
 
@@ -880,12 +1132,12 @@ class User:
             Signup=payload.get("Signup"),
             Organization=payload.get("Organization"),
             PaymentAuthorizations=payload.get("PaymentAuthorizations"),
-            activePaymentAuthorization=payload.get("activePaymentAuthorization"),
+            activePaymentAuthorization=payload.get(
+                "activePaymentAuthorization"),
             countryCode=payload.get("countryCode"),
-            segments=first_site.get("segments", []),
-            lastLogin=datetime.fromisoformat(payload.get("lastLogin")),
-            # deliverySites=DeliverySiteList(payload.get("deliverySites")),
-            deliverySites=DeliverySiteList(delivery_sites_data),
+            # segments=first_site.get("segments", []),
+            # lastLogin=datetime.fromisoformat(payload.get("lastLogin")),
+            lastLogin=last_login,
             createdAt=datetime.fromisoformat(payload.get("createdAt")),
             updatedAt=datetime.fromisoformat(payload.get("updatedAt")),
             email=payload.get("email"),
@@ -895,11 +1147,12 @@ class User:
             #     0].get("firstMeterReadingDate"),
             # lastMeterReadingDate=payload.get("deliverySites")[
             #     0].get("lastMeterReadingDate"),
-            deliveryStartDate=first_site.get("deliveryStartDate"),
-            deliveryEndDate=first_site.get("deliveryEndDate"),
-            firstMeterReadingDate=first_site.get("firstMeterReadingDate"),
-            lastMeterReadingDate=first_site.get("lastMeterReadingDate"),
-            meterReadingExportPeriods=payload.get("meterReadingExportPeriods", {}),
+            # deliveryStartDate=first_site.get("deliveryStartDate"),
+            # deliveryEndDate=first_site.get("deliveryEndDate"),
+            # firstMeterReadingDate=first_site.get("firstMeterReadingDate"),
+            # lastMeterReadingDate=first_site.get("lastMeterReadingDate"),
+            meterReadingExportPeriods=payload.get(
+                "meterReadingExportPeriods", {}),
             advancedPaymentAmount=payload.get("advancedPaymentAmount"),
             hasInviteLink=payload.get("hasInviteLink", False),
             hasCO2Compensation=payload.get("hasCO2Compensation", False),
@@ -909,17 +1162,20 @@ class User:
             websiteUrl=payload.get("websiteUrl"),
             customerSupportEmail=payload.get("customerSupportEmail"),
             UserSettings=payload.get("UserSettings", {}),
-            PushNotificationPriceAlerts=payload.get("PushNotificationPriceAlerts", []),
+            PushNotificationPriceAlerts=payload.get(
+                "PushNotificationPriceAlerts", []),
             # propositionType=payload.get("deliverySites")[
             #     0].get("propositionType"),
             # smartCharging=payload.get("deliverySites")[
             #     0].get("smartCharging"),
-            propositionType=first_site.get("propositionType"),
+            # propositionType=first_site.get("propositionType"),
             smartCharging=payload.get("smartCharging", {}),
             connections=payload.get("connections", {}),
-            externalDetails=ExternalDetails.from_dict(payload.get("externalDetails", {}))
+            externalDetails=ExternalDetails.from_dict(
+                payload.get("externalDetails", {}))
         )
 
+    # verwijder dit is verplaatst naar de deliverysite class
     @property
     def format_delivery_site_as_dict(self):
         sites_as_dict = []
@@ -935,7 +1191,8 @@ class User:
         for index, site in enumerate(self.deliverySites, start=1):
             address = site.get('address', {})
             site_name = f"Delivery site {index}"
-            house_number_addition = f"{address.get('houseNumberAddition')}" if address.get('houseNumberAddition') else ""
+            house_number_addition = f"{address.get('houseNumberAddition')}" if address.get(
+                'houseNumberAddition') else ""
             site_info = {
                 site_name: f"{address.get('street')} {address.get('houseNumber')} {house_number_addition if house_number_addition else ''} {address.get('zipCode')} {address.get('city')}"
             }
@@ -955,7 +1212,8 @@ class User:
                 "city": address.get('city')
             }
             if address.get('houseNumberAddition'):
-                site_info["house_number_addition"] = address.get('houseNumberAddition', '')
+                site_info["house_number_addition"] = address.get(
+                    'houseNumberAddition', '')
             site_dict[site_name] = site_info
         return site_dict
 
@@ -987,9 +1245,11 @@ class User:
 
         user: UserDetails
 
+
 @dataclass
 class Signup:
     user: User
+
 
 @dataclass
 class MonthInsights:
@@ -1070,7 +1330,8 @@ class MonthSummary:
             expectedCostsPerDay=expected_costs_per_day,
             CostsPerDayTillNow=costs_per_day_till_now,
             lastMeterReadingDate=payload.get("lastMeterReadingDate"),
-            meterReadingDayCompleteness=payload.get("meterReadingDayCompleteness"),
+            meterReadingDayCompleteness=payload.get(
+                "meterReadingDayCompleteness"),
             gasExcluded=payload.get("lastMeterReadingDate"),
             typename=payload.get("__typename")
         )
@@ -1159,10 +1420,10 @@ class Price:
     def __init__(self, data: dict, energy_type: Optional[str] = None) -> None:
         """Parse the response from the prices query."""
         self.energy_type = energy_type
-        #self.energy_type = data.get("energy_type", None)
+        # self.energy_type = data.get("energy_type", None)
 
-        #self.date_from = datetime.fromisoformat(data['from'])
-        #self.date_till = datetime.fromisoformat(data['till'])
+        # self.date_from = datetime.fromisoformat(data['from'])
+        # self.date_till = datetime.fromisoformat(data['till'])
         self.date_from = datetime.fromisoformat(data.get('from', ''))
         self.date_till = datetime.fromisoformat(data.get('till', ''))
 
@@ -1445,8 +1706,9 @@ class PriceData:
     #     self.price_data = [Price(price) for price in prices] if prices else []
 
     def __init__(self, prices: Optional[list['Price']] = None, energy_type: Optional[str] = None):
-        #self.price_data = [Price(price) for price in prices] if prices else []
-        self.price_data = [Price({**price, "energy_type": energy_type}) for price in prices] if prices else []
+        # self.price_data = [Price(price) for price in prices] if prices else []
+        self.price_data = [Price({**price, "energy_type": energy_type})
+                           for price in prices] if prices else []
         self.energy_type = energy_type
 
     def __add__(self, other: 'PriceData') -> 'PriceData':
@@ -1522,7 +1784,7 @@ class PriceData:
         if not self.today == []:
             return mean(hour.total for hour in self.today)
 
-    @property #todo
+    @property  # todo
     def tomorrow_average_price(self) -> Optional[float]:
         """ Average total price for tomorrow. """
         tomorrow_prices = self.get_prices_for_time_period(TimePeriod.TOMORROW)
@@ -1543,7 +1805,8 @@ class PriceData:
         if not tomorrow_prices:
             return None
 
-        average_price = mean(price.market_price_including_tax for price in tomorrow_prices)
+        average_price = mean(
+            price.market_price_including_tax for price in tomorrow_prices)
         rounded_average_price = round(average_price, DEFAULT_ROUND)
 
         return rounded_average_price
@@ -1556,7 +1819,8 @@ class PriceData:
         if not tomorrow_prices:
             return None
 
-        average_price = mean(price.market_price_including_tax_and_markup for price in tomorrow_prices)
+        average_price = mean(
+            price.market_price_including_tax_and_markup for price in tomorrow_prices)
         rounded_average_price = round(average_price, DEFAULT_ROUND)
 
         return rounded_average_price
@@ -1958,7 +2222,8 @@ class PriceData:
             price.marketPriceTax for price in all_prices), DEFAULT_ROUND)
         marketPrice_markup_avg = round(mean(
             price.sourcingMarkupPrice for price in all_prices), DEFAULT_ROUND)
-        marketPrice_avg = round(mean(price.marketPrice for price in all_prices), DEFAULT_ROUND)
+        marketPrice_avg = round(
+            mean(price.marketPrice for price in all_prices), DEFAULT_ROUND)
 
         return type('PriceDataAvg', (object,), {'values': all_prices, 'total': avg, 'market_price_with_tax_and_markup': market_price_with_tax_and_markup_avg, 'market_markup_price': marketPrice_markup_avg, 'market_price_with_tax': market_price_with_tax_avg, 'marketPriceTax': marketPriceTax_avg, 'marketPrice': marketPrice_avg})
 
@@ -1980,12 +2245,18 @@ class PriceData:
             'marketPriceTax', 'marketPrice'
         ])
 
-        avg = round(mean(price.total for price in upcoming_prices), DEFAULT_ROUND)
-        market_price_with_tax_and_markup_avg = round(mean(price.marketPrice_with_tax_and_markup for price in upcoming_prices), DEFAULT_ROUND)
-        market_price_with_tax_avg = round(mean(price.market_price_with_tax for price in upcoming_prices), DEFAULT_ROUND)
-        marketPriceTax_avg = round(mean(price.marketPriceTax for price in upcoming_prices), DEFAULT_ROUND)
-        marketPrice_markup_avg = round(mean(price.sourcingMarkupPrice for price in upcoming_prices), DEFAULT_ROUND)
-        marketPrice_avg = round(mean(price.marketPrice for price in upcoming_prices), DEFAULT_ROUND)
+        avg = round(mean(price.total for price in upcoming_prices),
+                    DEFAULT_ROUND)
+        market_price_with_tax_and_markup_avg = round(mean(
+            price.marketPrice_with_tax_and_markup for price in upcoming_prices), DEFAULT_ROUND)
+        market_price_with_tax_avg = round(
+            mean(price.market_price_with_tax for price in upcoming_prices), DEFAULT_ROUND)
+        marketPriceTax_avg = round(
+            mean(price.marketPriceTax for price in upcoming_prices), DEFAULT_ROUND)
+        marketPrice_markup_avg = round(
+            mean(price.sourcingMarkupPrice for price in upcoming_prices), DEFAULT_ROUND)
+        marketPrice_avg = round(
+            mean(price.marketPrice for price in upcoming_prices), DEFAULT_ROUND)
 
         return PriceDataAvg(
             values=upcoming_prices,
@@ -2002,7 +2273,8 @@ class PriceData:
         """Get the average of tomorrow's prices."""
         now = datetime.now(timezone.utc).astimezone()
         tomorrow = now + timedelta(days=1)
-        tomorrow_start = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_start = tomorrow.replace(
+            hour=0, minute=0, second=0, microsecond=0)
         tomorrow_end = tomorrow_start + timedelta(days=1)
 
         # tomorrow_prices = [
@@ -2020,12 +2292,18 @@ class PriceData:
             'market_price_tax', 'market_price'
         ])
 
-        avg = round(mean(price.total for price in tomorrow_prices), DEFAULT_ROUND)
-        market_price_with_tax_and_markup_avg = round(mean(price.market_price_including_tax_and_markup for price in tomorrow_prices), DEFAULT_ROUND)
-        market_price_with_tax_avg = round(mean(price.market_price_including_tax for price in tomorrow_prices), DEFAULT_ROUND)
-        market_price_tax_avg = round(mean(price.market_price_tax for price in tomorrow_prices), DEFAULT_ROUND)
-        market_markup_price_avg = round(mean(price.sourcing_markup_price for price in tomorrow_prices), DEFAULT_ROUND)
-        market_price_avg = round(mean(price.market_price for price in tomorrow_prices), DEFAULT_ROUND)
+        avg = round(mean(price.total for price in tomorrow_prices),
+                    DEFAULT_ROUND)
+        market_price_with_tax_and_markup_avg = round(mean(
+            price.market_price_including_tax_and_markup for price in tomorrow_prices), DEFAULT_ROUND)
+        market_price_with_tax_avg = round(mean(
+            price.market_price_including_tax for price in tomorrow_prices), DEFAULT_ROUND)
+        market_price_tax_avg = round(
+            mean(price.market_price_tax for price in tomorrow_prices), DEFAULT_ROUND)
+        market_markup_price_avg = round(
+            mean(price.sourcing_markup_price for price in tomorrow_prices), DEFAULT_ROUND)
+        market_price_avg = round(
+            mean(price.market_price for price in tomorrow_prices), DEFAULT_ROUND)
 
         return PriceDataAvg(
             values=tomorrow_prices,
@@ -2146,11 +2424,12 @@ class PriceData:
         upcoming_prices = [
             price for price in self.price_data if price.date_from > current_hour_end
         ]
-        
+
         if not upcoming_prices:
             return None
-        
-        market_total_price = sum(price.marketPrice for price in upcoming_prices)
+
+        market_total_price = sum(
+            price.marketPrice for price in upcoming_prices)
         return market_total_price / len(upcoming_prices)
 
     @property
@@ -2173,13 +2452,14 @@ class PriceData:
         upcoming_prices = [
             price for price in self.price_data if price.date_from > current_hour_end
         ]
-        
+
         if not upcoming_prices:
             return None
-        
-        total_price_with_tax = sum(price.marketPrice_with_tax for price in upcoming_prices)
+
+        total_price_with_tax = sum(
+            price.marketPrice_with_tax for price in upcoming_prices)
         average_price_with_tax = total_price_with_tax / len(upcoming_prices)
-        
+
         return average_price_with_tax
 
     @property
@@ -2227,7 +2507,7 @@ class MarketPrices:
     def __init__(self, electricity: Optional[PriceData] = None, gas: Optional[PriceData] = None, energy_type: Optional[str] = None) -> None:
         self.electricity = electricity
         self.gas = gas
-        #self.energy_type = energy_type
+        # self.energy_type = energy_type
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> 'MarketPrices':
@@ -2248,7 +2528,8 @@ class MarketPrices:
         market_prices_gas = payload.get("marketPricesGas", {})
 
         return MarketPrices(
-            electricity=PriceData(market_prices_electricity, energy_type="electricity"),
+            electricity=PriceData(market_prices_electricity,
+                                  energy_type="electricity"),
             gas=PriceData(market_prices_gas, energy_type="gas"),
         )
 
@@ -2258,7 +2539,7 @@ class MarketPrices:
         _LOGGER.debug("Prices %s", data)
 
         # Return None if the data is empty
-        #if not data:
+        # if not data:
         #    return None
 
         # Check for errors in the data
@@ -2278,16 +2559,19 @@ class MarketPrices:
         # Get customer market prices from the payload
         customer_market_prices = payload.get("customerMarketPrices", {})
 
-        market_prices_electricity = customer_market_prices.get("electricityPrices", {})
+        market_prices_electricity = customer_market_prices.get(
+            "electricityPrices", {})
         market_prices_gas = customer_market_prices.get("gasPrices", {})
 
         # Debugging print to check what type of data is in customer_market_prices
         # print("TYPEDATA:", customer_market_prices.get("electricityPrices"))
-        
+
         return MarketPrices(
-            electricity=PriceData(market_prices_electricity, energy_type="electricity"),
+            electricity=PriceData(market_prices_electricity,
+                                  energy_type="electricity"),
             gas=PriceData(market_prices_gas, energy_type="gas"),
         )
+
 
 @dataclass
 class SmartBatteries:
@@ -2348,7 +2632,8 @@ class SmartBatteries:
                 for smart_battery in payload.get("smartBatteries", [])
             ],
         )
-        
+
+
 @dataclass
 class SmartBatterySessions:
     """Collection of battery sessions, for a given battery."""
@@ -2370,14 +2655,15 @@ class SmartBatterySessions:
             deviceId=smart_battery_session_data.get("deviceId"),
             periodEndDate=smart_battery_session_data.get("periodEndDate"),
             periodStartDate=smart_battery_session_data.get("periodStartDate"),
-            periodTradingResult=smart_battery_session_data.get("periodTradingResult"),
-            totalTradingResult=smart_battery_session_data.get("totalTradingResult"),
+            periodTradingResult=smart_battery_session_data.get(
+                "periodTradingResult"),
+            totalTradingResult=smart_battery_session_data.get(
+                "totalTradingResult"),
             sessions=[
                 SmartBatterySessions.Session.from_dict(session)
                 for session in smart_battery_session_data.get("sessions")
             ],
         )
-
 
     @dataclass
     class Session:
@@ -2397,7 +2683,7 @@ class SmartBatterySessions:
                 tradingResult=payload.get("tradingResult"),
                 cumulativeTradingResult=payload.get("cumulativeTradingResult"),
             )
-            
+
     deviceId: str
     periodEndDate: str
     periodStartDate: str
