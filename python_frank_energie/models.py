@@ -1,4 +1,3 @@
-from __future__ import annotations
 """Data models enable parsing and processing of the Frank Energie API responses in a structured manner."""
 # python_frank_energie/models.py
 
@@ -23,7 +22,7 @@ TAX_RATE = 0.21
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
-VERSION = "2025.1.6"
+VERSION = "2025.3.22"
 
 
 @dataclass
@@ -395,7 +394,7 @@ class UsageItem:
     unit: str
 
     @staticmethod
-    def from_dict(data: dict[str, Any]) -> UsageItem:
+    def from_dict(data: dict[str, Any]) -> 'UsageItem':
         """Maakt een UsageItem-object aan vanuit een dictionary."""
         try:
             return UsageItem(
@@ -422,22 +421,18 @@ class EnergyCategory:
     items: list[UsageItem]
 
     @staticmethod
-    def from_dict(data: dict[str, Any]) -> EnergyCategory:
+    def from_dict(data: dict[str, Any]) -> 'EnergyCategory':
         """Creates an EnergyCategory object from a dictionary."""
         try:
             if data is None:
-                # If data is None, return a default EnergyCategory object
                 return EnergyCategory(usage_total=0.00, costs_total=0.00, unit="", items=[])
-            
-            usage_total = data.get("usageTotal")
-            if usage_total is not None:
-                usage_total = float(usage_total)
-            else:
-                usage_total = 0.00  # Default value if usageTotal is missing or None
-            
+
+            usage_total = float(data["usageTotal"]) if data.get("usageTotal") is not None else 0.00
+            costs_total = float(data["costsTotal"]) if data.get("costsTotal") is not None else 0.00
+
             return EnergyCategory(
                 usage_total=usage_total,
-                costs_total=float(data["costsTotal"]),
+                costs_total=costs_total,
                 unit=str(data["unit"]),
                 items=[UsageItem.from_dict(item) for item in data.get("items", []) or []],
             )
@@ -451,12 +446,12 @@ class PeriodUsageAndCosts:
     """Bevat het verbruik en de kosten van gas, elektriciteit en teruglevering voor een periode."""
 
     _id: str
-    gas: EnergyCategory
-    electricity: EnergyCategory
-    feed_in: EnergyCategory
+    gas: Optional[EnergyCategory]
+    electricity: Optional[EnergyCategory]
+    feed_in: Optional[EnergyCategory]
 
     @staticmethod
-    def from_dict(data: dict[str, Any]) -> PeriodUsageAndCosts:
+    def from_dict(data: dict[str, Any]) -> 'PeriodUsageAndCosts':
         """Maakt een PeriodUsageAndCosts-object aan vanuit een dictionary."""
         try:
             period_data = data.get("periodUsageAndCosts")
