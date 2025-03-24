@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="frank-energie-pkg",  # Package name (must be unique on PyPI)
-    version="2025.1.6",
+    version="2025.3.22",
     description="Asynchronous Python package for Frank Energie. Retrieve energy prices for Frank energie.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
