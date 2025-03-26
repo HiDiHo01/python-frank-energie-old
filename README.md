@@ -1,5 +1,6 @@
 # python-frank-energie
 [![Dependabot Updates](https://github.com/HiDiHo01/python-frank-energie/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/HiDiHo01/python-frank-energie/actions/workflows/dependabot/dependabot-updates)
+
 Asyncio package to communicate with Frank Energie. This package is created to be used with https://github.com/HiDiHo01/home-assistant-frank_energie.
 
 ## Disclaimer
