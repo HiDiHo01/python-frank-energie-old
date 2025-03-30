@@ -12,7 +12,7 @@ init-hook='import sys; sys.path.append("src")'
 [MESSAGES CONTROL]
 # Disable specific warnings or errors by their IDs (comma-separated list).
 # You can disable errors like C0114 (Missing module docstring) if not needed.
-disable=C0114, C0116, C0103, R0903, R0201, R0801
+disable=C0114, C0116, C0103, R0903, R0801 # R0201 was moved to an optional extension, see https://pylint.readthedocs.io/en/latest/whatsnew/2/2.14/summary.html#removed-checkers. (useless-option-value)
 
 [REPORTS]
 # Set the output format for reports.
@@ -25,7 +25,7 @@ evaluation=10.0 - ((float(5 * error + warning + refactor + convention)) / statem
 max-line-length=88
 
 # List of decorators that change the function signature.
-decorated-modifier-decorators=abc.abstractmethod, abc.abstractproperty, asyncio.coroutine, typing.overload
+# decorated-modifier-decorators=abc.abstractmethod, abc.abstractproperty, asyncio.coroutine, typing.overload # deprecated
 
 # Naming style matching regex for variable names.
 variable-rgx=[a-z_][a-z0-9_]{0,30}$
