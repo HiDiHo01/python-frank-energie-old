@@ -28,7 +28,6 @@ jobs:
           pip install pylint
           pip install jwt
           pip install pytz
-          pip install dateutil
           pip install pydantic
           pip install freezegun
 
