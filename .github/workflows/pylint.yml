@@ -30,7 +30,6 @@ jobs:
           pip install pytz
           pip install dateutil
           pip install pydantic
-          pip install setuptools
           pip install freezegun
 
       - name: Run Pylint with Configuration
