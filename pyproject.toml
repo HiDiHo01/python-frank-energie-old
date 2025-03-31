@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-frank-energie"
-version = "6.0.1"
+version = "2025.3.31"
 description = "Asynchronous Python client for the Frank Energie"
 authors = ["HiDiHo01"]
 maintainers = ["HiDiHo01"]
@@ -11,7 +11,7 @@ repository = "https://github.com/HiDiHo01/python-frank-energie"
 documentation = "https://github.com/HiDiHo01/python-frank-energie"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: Apache Software License",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent"
@@ -113,5 +113,5 @@ paths = ["python_frank_energie"]
 verbose = true
 
 [build-system]
-requires = ["homeassistant","setuptools", "poetry-core>=1.0.0"]
+requires = ["setuptools", "poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
