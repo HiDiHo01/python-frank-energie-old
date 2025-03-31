@@ -84,6 +84,9 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-v1-${{ steps.python.outputs.python-version }}-
             pip-${{ runner.os }}-v1-
+      - name: Refresh poetry lock
+        run: |
+          poetry lock
       - name: 🏗 Install workflow dependencies
         run: |
           pip install -r .github/workflows/requirements.txt
