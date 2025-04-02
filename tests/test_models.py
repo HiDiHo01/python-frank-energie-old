@@ -13,6 +13,7 @@ from python_frank_energie.models import (
     MarketPrices,
     MonthSummary,
     User,
+    UserSites,
 )
 
 from . import load_fixtures
@@ -62,11 +63,18 @@ def test_user_with_expected_parameters():
     user = User.from_dict(json.loads(load_fixtures("user.json")))
     assert user
     assert user.connectionsStatus == "READY"
+    assert user.advancedPaymentAmount == 99.0
+    assert user.hasCO2Compensation is False
+
+def test_usersites_with_expected_parameters():
+    """Test User.from_dict with expected parameters."""
+    usersites = UserSites.from_dict(json.loads(load_fixtures("usersites.json")))
+    assert user
+    assert user.connectionsStatus == "READY"
     assert user.firstMeterReadingDate == "2022-11-20"
     assert user.lastMeterReadingDate == "2022-12-05"
     assert user.advancedPaymentAmount == 99.0
     assert user.hasCO2Compensation is False
-
 
 def test_user_with_missing_parameters():
     """Test User.from_dict with missing parameters."""

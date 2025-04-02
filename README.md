@@ -1,6 +1,7 @@
 # python-frank-energie
+[![Dependabot Updates](https://github.com/HiDiHo01/python-frank-energie/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/HiDiHo01/python-frank-energie/actions/workflows/dependabot/dependabot-updates)
 
-Asyncio package to communicate with Frank Energie. This package is created to be used with https://github.com/bajansen/home-assistant-frank_energie.
+Asyncio package to communicate with Frank Energie. This package is created to be used with https://github.com/HiDiHo01/home-assistant-frank_energie.
 
 ## Disclaimer
 
@@ -8,7 +9,10 @@ This package is not developed, nor supported by Frank Energie.
 
 ## Installation
 ```bash
-python3 -m pip install python-frank-energie
+install GIT from https://git-scm.com/downloads
+python -m pip install git+https://github.com/HiDiHo01/python-frank-energie.git@v2025.3.27
+for the latest release version or for the lastest unreleased version
+python -m pip install git+https://github.com/HiDiHo01/python-frank-energie.git
 ```
 
 ## Contributing

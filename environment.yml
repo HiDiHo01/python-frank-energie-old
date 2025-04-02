@@ -1,7 +1,8 @@
-name: python-frank-energie
+name: base
 channels:
-  - conda-forge
   - defaults
+  - conda-forge
+
 dependencies:
   - python=3.12
   - pandas
@@ -9,10 +10,17 @@ dependencies:
   - pyyaml
   - numpy
   - scikit-learn
-  - pytest
   - jupyterlab
+  - pylint
+  - pytest
+  - freezegun
   - pip
   - pip:
       - homeassistant
+      - requests
+      - setuptools
+      - jwt
+      - pydantic
       - aiohttp
+      - freezegun
       - fastapi
