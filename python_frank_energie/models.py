@@ -290,7 +290,7 @@ class Invoices:
 
         return expected_costs_this_year
 
-    def get_unique_years(self) -> Set[int]:
+    def get_unique_years(self) -> set[int]:
         """Get the unique years present in allPeriodsInvoices."""
         unique_years = {
             invoice.StartDate.year for invoice in self.allPeriodsInvoices}
